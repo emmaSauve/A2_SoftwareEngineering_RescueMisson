@@ -96,7 +96,20 @@ class OrderService:
         state = self.store.load()
         return self.build_quote(state, customer_type, items, fulfillment)
 
+
+    def deduct_inventory(self, state, items):
+        for line in items:
+            for product in state["catalog"]:
+                if product["product_id"] == line["product_id"]:
+                    product["stock"] -= line["quantity"]
+
+    def save_order(self, state, order):
+        state["next_order_number"] += 1
+        state["orders"].append(order)
+        self.store.save(state)
+
     
+   
     def place_order(self, customer_type, items, fulfillment="pickup"):
         state = self.store.load()
 
@@ -108,16 +121,11 @@ class OrderService:
             **quote,
         }
 
-        for line in quote["items"]:
-            for product in state["catalog"]:
-                if product["product_id"] == line["product_id"]:
-                    product["stock"] -= line["quantity"]
-
-        state["next_order_number"] += 1
-        state["orders"].append(order)
-        self.store.save(state)
+        self.deduct_inventory(state, quote["items"])
+        self.save_order(state, order)
 
         return order
+
 
 
     def list_orders(self):
