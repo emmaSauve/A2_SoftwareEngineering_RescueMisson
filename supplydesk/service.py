@@ -10,6 +10,8 @@ DISCOUNT_ROUNDING_ADJUSTMENT = 50
 
 FREE_DELIVERY_THRESHOLD_CENTS = 10000
 DELIVERY_FEE_CENTS = 600
+# New: Express delivery fee constant
+EXPRESS_DELIVERY_FEE = 1200
 
 class OrderService:
     def __init__(self, state_path=".supplydesk/state.json"):
@@ -22,8 +24,8 @@ class OrderService:
     def build_quote(self, state, customer_type, items, fulfillment):
         if customer_type not in ("regular", "student"):
             raise ValueError("Customer type must be regular or student.")
-        if fulfillment not in ("pickup", "delivery"):
-            raise ValueError("Fulfillment must be pickup or delivery.")
+        if fulfillment not in ("pickup", "delivery", "express"):
+            raise ValueError("Fulfillment must be pickup, delivery, or express.")
         if not isinstance(items, list) or not items:
             raise ValueError("An order must contain at least one item.")
 
@@ -63,6 +65,7 @@ class OrderService:
 
         
         discount = 0
+
         if (
             customer_type == "student"
             and subtotal > STUDENT_DISCOUNT_THRESHOLD_CENTS
@@ -73,6 +76,9 @@ class OrderService:
             ) // PERCENTAGE_DIVISOR
 
         delivery = 0
+        if fulfillment == "express":
+            delivery = EXPRESS_DELIVERY_FEE
+
         if (
             fulfillment == "delivery"
             and subtotal - discount < FREE_DELIVERY_THRESHOLD_CENTS

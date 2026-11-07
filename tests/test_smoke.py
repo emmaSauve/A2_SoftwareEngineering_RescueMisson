@@ -40,7 +40,7 @@ class OrderSmokeTests(unittest.TestCase):
         self.assertEqual(cancelled["status"], "cancelled")
         self.assertEqual(self.service.catalog(), before)
 
-       #Task 2 tests
+       # Task 2 tests
     
     def test_successful_order_reduces_stock(self):
         before = self.service.catalog()
@@ -131,6 +131,84 @@ class OrderSmokeTests(unittest.TestCase):
             stock_after_first_cancellation
         )
 
+ # Task 5: CR-01 New tests
+
+    def test_express_delivery_quote(self):
+        quote = self.service.quote(
+            customer_type="regular",
+            fulfillment="express",
+            items=[{"product_id": "notebook", "quantity": 2}]
+        )
+
+        self.assertEqual(quote["delivery_cents"], 1200)
+        self.assertEqual(quote["total_cents"], 2200)
+
+
+    def test_student_express_delivery_quote(self):
+        quote = self.service.quote(
+            customer_type="student",
+            fulfillment="express",
+            items=[{"product_id": "hoodie", "quantity": 2}]
+        )
+
+        self.assertEqual(quote["discount_cents"], 800)
+        self.assertEqual(quote["delivery_cents"], 1200)
+        self.assertEqual(quote["total_cents"], 8400)
+
+
+    def test_express_delivery_not_free_above_threshold(self):
+        quote = self.service.quote(
+            customer_type="regular",
+            fulfillment="express",
+            items=[{"product_id": "hoodie", "quantity": 3}]
+        )
+
+        self.assertEqual(quote["delivery_cents"], 1200)
+        self.assertEqual(quote["total_cents"], 13200)
+
+
+    def test_express_order_can_be_reopened(self):
+        order = self.service.place_order(
+            customer_type="regular",
+            fulfillment="express",
+            items=[{"product_id": "notebook", "quantity": 2}]
+        )
+
+        reopened = OrderService(self.path).get_order(order["order_id"])
+
+        self.assertEqual(reopened["fulfillment"], "express")
+        self.assertEqual(reopened["delivery_cents"], 1200)
+        self.assertEqual(reopened["total_cents"], 2200)
+
+    def test_express_order_matches_quote(self):
+        items = [
+            {"product_id": "notebook", "quantity": 2}
+        ]
+
+        quote = self.service.quote(
+            "regular", items, "express"
+        )
+
+        order = self.service.place_order(
+            "regular", items, "express"
+        )
+
+        self.assertEqual(
+            order["subtotal_cents"],
+            quote["subtotal_cents"]
+        )
+        self.assertEqual(
+            order["discount_cents"],
+            quote["discount_cents"]
+        )
+        self.assertEqual(
+            order["delivery_cents"],
+            quote["delivery_cents"]
+        )
+        self.assertEqual(
+            order["total_cents"],
+            quote["total_cents"]
+        )
 
 if __name__ == "__main__":
     unittest.main()
