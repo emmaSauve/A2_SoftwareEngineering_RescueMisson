@@ -2,6 +2,14 @@
 
 from supplydesk.storage import JsonStore
 
+# Pricing constants (amounts are in cents)
+STUDENT_DISCOUNT_THRESHOLD_CENTS = 5000
+STUDENT_DISCOUNT_PERCENT = 10
+PERCENTAGE_DIVISOR = 100
+DISCOUNT_ROUNDING_ADJUSTMENT = 50
+
+FREE_DELIVERY_THRESHOLD_CENTS = 10000
+DELIVERY_FEE_CENTS = 600
 
 class OrderService:
     def __init__(self, state_path=".supplydesk/state.json"):
@@ -11,7 +19,7 @@ class OrderService:
         return self.store.load()["catalog"]
 
     
-    def _build_quote(self, state, customer_type, items, fulfillment):
+    def build_quote(self, state, customer_type, items, fulfillment):
         if customer_type not in ("regular", "student"):
             raise ValueError("Customer type must be regular or student.")
         if fulfillment not in ("pickup", "delivery"):
@@ -53,13 +61,24 @@ class OrderService:
                 "line_total_cents": line_total,
             })
 
+        
         discount = 0
-        if customer_type == "student" and subtotal > 5000:
-            discount = (subtotal * 10 + 50) // 100
+        if (
+            customer_type == "student"
+            and subtotal > STUDENT_DISCOUNT_THRESHOLD_CENTS
+        ):
+            discount = (
+                subtotal * STUDENT_DISCOUNT_PERCENT
+                + DISCOUNT_ROUNDING_ADJUSTMENT
+            ) // PERCENTAGE_DIVISOR
 
         delivery = 0
-        if fulfillment == "delivery" and subtotal - discount < 10000:
-            delivery = 600
+        if (
+            fulfillment == "delivery"
+            and subtotal - discount < FREE_DELIVERY_THRESHOLD_CENTS
+        ):
+            delivery = DELIVERY_FEE_CENTS
+
 
         return {
             "customer_type": customer_type,
@@ -75,13 +94,13 @@ class OrderService:
     
     def quote(self, customer_type, items, fulfillment="pickup"):
         state = self.store.load()
-        return self._build_quote(state, customer_type, items, fulfillment)
+        return self.build_quote(state, customer_type, items, fulfillment)
 
     
     def place_order(self, customer_type, items, fulfillment="pickup"):
         state = self.store.load()
 
-        quote = self._build_quote(state, customer_type, items, fulfillment)
+        quote = self.build_quote(state, customer_type, items, fulfillment)
 
         order = {
             "order_id": "ORD-" + str(state["next_order_number"]).zfill(4),
