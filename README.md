@@ -98,9 +98,9 @@ python -m unittest discover -s tests -v
 The supplied tests should finish with:
 
 ```text
-Ran 4 tests
+Ran 16 tests in 0.111s
 
-OK
+FAILED (failures=3)
 ```
 
 These four tests are a starting point. **Passing them does not mean every required behavior is correct.** You will add meaningful tests as part of the assignment.
@@ -172,6 +172,7 @@ You can perform operations directly instead of using the menu. These commands ar
 python -m supplydesk catalog
 python -m supplydesk quote --customer regular --item notebook:2
 python -m supplydesk quote --customer student --fulfillment delivery --item hoodie:2
+python -m supplydesk quote --customer student --fulfillment express --item hoodie:2
 ```
 
 Use repeated `--item` options for multiple items:

@@ -8,6 +8,7 @@ For your System Understanding Note, inspect the implementation and explain the s
 
 - Each order has status `placed` or `cancelled`.
 - Shipping workflows, payment processing, taxes, authentication, and customer personal information are outside scope.
+- Express delivery is a fulfillment option with a fixed fee. It does not introduce addresses, delivery scheduling, external delivery services, or tracking.
 - Only one running instance should use a given save file at a time.
 - These limits are deliberate. You are not expected to add the excluded features.
 - A later client change request may extend these requirements.
@@ -57,7 +58,7 @@ place_order(customer_type, items, fulfillment="pickup")
 Both operations require:
 
 - Customer type: exactly `regular` or `student`.
-- Fulfillment: exactly `pickup` or `delivery`.
+- Fulfillment: exactly `pickup`, `delivery`, or `express`.
 - Items: a nonempty list of dictionaries, each containing `product_id` and `quantity`.
 - A valid product ID for every item.
 - An integer quantity from 1 through 99 inclusive for each item. Booleans, fractional numbers, and numeric strings are not valid quantities when calling the service directly.
@@ -75,6 +76,7 @@ The menu and command-line parser convert typed quantities into integers before c
 
 - The menu defaults to `regular` and `pickup` when those prompts are left blank.
 - Individual commands use the same defaults when the corresponding options are omitted.
+- The menu and individual commands must accept express as a fulfillment option for quotes and orders.
 - A rejected individual command reports an error and exits with a nonzero status.
 - The menu reports errors and remains available for another attempt.
 
@@ -86,14 +88,18 @@ All service calculations and stored monetary values use integer Canadian cents.
 2. A student receives a 10% discount when the subtotal is at least 5,000 cents ($50.00). Regular customers receive no discount.
 3. Round the discount to the nearest whole cent, with half a cent rounded upward. Do not use binary floating-point values for money calculations.
 4. Pickup is free.
-5. Delivery costs 600 cents ($6.00). Delivery is free when the subtotal minus the discount is at least 10,000 cents ($100.00).
-6. Total = subtotal minus discount plus delivery charge. No taxes or other charges apply.
+5. Standard delivery costs 600 cents ($6.00). Standard delivery is free when the subtotal minus the discount is at least 10,000 cents ($100.00).
+6. Express delivery always costs 1,200 cents ($12.00), regardless of the order subtotal. The standard-delivery free-shipping threshold does not apply to express delivery.
+7. Student discounts apply to eligible merchandise subtotals only. Delivery charges are not discounted.
+8. Total = subtotal minus discount plus the applicable delivery charge. No taxes or other charges apply..
 
 Examples—all amounts below are in cents:
 
 - Regular pickup, two notebooks: subtotal 1,000; discount 0; delivery 0; total 1,000.
 - Student delivery, two hoodies: subtotal 8,000; discount 800; delivery 600; total 7,800.
+- Student express delivery, two hoodies: subtotal 8,000; discount 800; delivery 1,200; total 8,400.
 - Regular delivery, three hoodies: subtotal 12,000; discount 0; delivery 0; total 12,000.
+- Regular express delivery, three hoodies: subtotal 12,000; discount 0; delivery 1,200; total 13,200.
 
 These rules apply identically to quotes and placed orders.
 
@@ -106,6 +112,8 @@ A quote returns:
 - Order subtotal, discount, delivery charge, and total.
 
 A quote must not create or modify a save file, reserve stock, create an order, or use an order ID.
+
+A quote must support all three fulfillment options: pickup, delivery, and express.
 
 If the catalog, stock, and request remain unchanged, a quote and a subsequent placed order must contain the same pricing and item information.
 
@@ -125,6 +133,7 @@ Order retrieval and history follow these rules:
 - `list_orders()` returns all orders in their original placement order, including cancelled orders.
 - Reopening the application with the same save file preserves history and stock.
 - Historical prices remain as recorded when the order was placed. They are not recalculated from current catalog prices.
+- Express orders retain their fulfillment option, original items, delivery charge, discount, and total when retrieved or reopened from a save file.
 - Cancelling an order does not make its ID available for reuse.
 
 ## Cancellation
@@ -164,6 +173,8 @@ Menu behavior:
 
 - Display money in Canadian dollars. Service calculations and stored values remain in integer cents.
 - Default to `regular` and `pickup` when those prompts are left blank.
+- Allow users to select pickup, delivery, or express when requesting a quote or placing an order.
+- Display the express delivery option and its $12.00 fee in relevant menu prompts and command-line help.
 - Finish collecting items when the product-ID prompt is left blank.
 - Require a `y` confirmation before placing or cancelling an order. Declining must leave saved data unchanged.
 - Report invalid requests and return to the main menu. If quantity text cannot be converted to an integer, ask the user to re-enter the item.
